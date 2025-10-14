@@ -82,6 +82,10 @@ class Improv:
                 raise Exception(f'''Bad or malformed directive "{rawDirective}": 
                                 cannot parse as integers: "{a}", "{b}".''')
         
+        # Model attribute
+        elif hasattr(model, directive):
+            return getattr(model, directive)
+        
         # Unknown
         else:
             return '[' + directive + ']'
