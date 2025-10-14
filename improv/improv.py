@@ -1,3 +1,5 @@
+from improv.model import Model
+
 class Improv:
     def __init__ (
             self, 
@@ -6,7 +8,7 @@ class Improv:
         self.snippets:dict = dict(snippets)
         
     
-    def gen (self, snippetName:str, model=None) -> str:
+    def gen (self, snippetName:str, model:Model=None) -> str:
         output = ...
         
         return output
