@@ -10,6 +10,9 @@ class Improv:
         
     
     def gen (self, snippetName:str, model:Model=None) -> str:
+        if snippetName in model.bindings:
+            return model.bindings[snippetName]
+        
         groups = self.snippets[snippetName]['groups']
         
         # Flatten phrases in a list.
@@ -21,5 +24,9 @@ class Improv:
         
         # Select a phrase at random.
         output = phrases[randint(0, len(phrases)-1)]
+        
+        # Bound snippets are fixed once generated (per model)
+        if 'bind' in self.snippets[snippetName] and self.snippets[snippetName]['bind']:
+            model.bindings[snippetName] = output
         
         return output
