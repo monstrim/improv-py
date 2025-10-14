@@ -69,6 +69,19 @@ class Improv:
         elif directive[0] == ':':
             return self.gen(directive[1:], model)
         
+        # Random integer
+        elif directive[0] == '#':
+            try:
+                a, b = directive[1:].split('-', 1)
+            except:
+                raise Exception(f'''Bad or malformed directive "{rawDirective}": expected -''')
+            
+            try:
+                return randint(int(a), int(b))
+            except:
+                raise Exception(f'''Bad or malformed directive "{rawDirective}": 
+                                cannot parse as integers: "{a}", "{b}".''')
+        
         # Unknown
         else:
             return '[' + directive + ']'
