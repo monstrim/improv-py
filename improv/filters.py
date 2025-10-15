@@ -32,6 +32,14 @@ def __groupComparer(comparisonMode, bonus:int, cumulative:bool=False):
     return _fn
 
 
+def partialBonus (bonus:int=1, cumulative:bool=False):
+    return __groupComparer(comparisonMode=TagComparison.PARTIAL, bonus=bonus, cumulative=cumulative)
+
+
+def fullBonus (bonus:int=1, cumulative:bool=False):
+    return __groupComparer(comparisonMode=TagComparison.TOTAL, bonus=bonus, cumulative=cumulative)
+
+
 def mismatchFilter ():
     '''
     Looks for mismatched tags (i.e., tags which match the first position, and are therefore equivalent,
