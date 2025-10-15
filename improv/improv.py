@@ -1,12 +1,20 @@
 from random import randint
+import typing
+
 from improv.model import Model
 
 class Improv:
     def __init__ (
             self, 
             snippets:dict, 
+            filters:list[typing.Callable]=[],
             ):
         self.snippets:dict = dict(snippets)
+        self.filters:list[typing.Callable] = filters
+        '''
+        Filter functions should return None if the whole group is to be discarded,
+        or a new group if the group has been altered (e.g some phrases filtered)
+        '''
         
     ## PUBLIC METHODS
     
@@ -16,10 +24,22 @@ class Improv:
         
         groups = self.snippets[snippetName]['groups']
         
+        # Filter, and score, snippet groups
+        filteredGroups = []
+        
+        for group in groups:
+            for filter in self.filters:
+                group = filter(group, model, self)
+                if group is None:
+                    break
+            
+            if group is not None and len(group['phrases']) > 0:
+                filteredGroups.append(group)
+        
         # Flatten phrases in a list.
         phrases = [
             phrase
-            for group in groups
+            for group in filteredGroups
             for phrase in group['phrases']
         ]
         
