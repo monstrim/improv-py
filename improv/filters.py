@@ -26,6 +26,6 @@ def mismatchFilter ():
             for modelTag in model.tags:
                 if __compareTags(groupTag, modelTag) == TagComparison.MISMATCH:
                     return None
-        return group
+        return 0
 
     return _fn
