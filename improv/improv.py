@@ -15,7 +15,8 @@ class Improv:
         self.filters:list[typing.Callable] = filters
         '''
         Filter functions should return None if the whole group is to be discarded,
-        or a new group if the group has been altered (e.g some phrases filtered)
+        a single value for scoring if the whole group is accepted, and a list of 
+        [value, new group] if the group has been altered (e.g some phrases filtered)
         '''
         
     ## PUBLIC METHODS
@@ -28,20 +29,38 @@ class Improv:
         
         # Filter, and score, snippet groups
         filteredGroups = []
+        maxScore = float('-inf')
         
         for group in groups:
+            score = 0
+            
             for filter in self.filters:
-                group = filter(group, model, self)
-                if group is None:
+                filterOutput = filter(group, model, self)
+                
+                if filterOutput is None:
+                    group = None
                     break
+                elif type(filterOutput) in (list, tuple):
+                    # We got a tuple, meaning the filter wants to modify the group before
+                    # moving on.
+                    assert len(filterOutput)==2, "Filter must return 1 or 2 values"
+                    scoreOffset, group = filterOutput
+                else:
+                    scoreOffset = filterOutput
+                
+                score += scoreOffset
             
             if group is not None and len(group['phrases']) > 0:
-                filteredGroups.append(group)
+                filteredGroups.append({'group': group, 'score': score})
+                maxScore = max(score, maxScore)
+        
+        # Filter out groups based on score threshold
+        scoredGroups = [g['group'] for g in filteredGroups if g['score'] >= maxScore]
         
         # Flatten phrases in a list.
         phrases = [
             [phrase, group['tags']]
-            for group in filteredGroups
+            for group in scoredGroups
             for phrase in group['phrases']
         ]
         
