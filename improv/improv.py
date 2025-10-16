@@ -1,4 +1,5 @@
 from random import randint
+from functools import reduce
 import typing
 
 from improv.model import Model
@@ -200,6 +201,11 @@ class Improv:
         # Model attribute
         elif hasattr(model, directive):
             return getattr(model, directive)
+        
+        # SubModel attribute
+        elif directive.find('.') > 0:
+            direcChain = directive.split('.')
+            return reduce(lambda model, directive: getattr(model, directive), direcChain, model)
         
         # Unknown
         else:
