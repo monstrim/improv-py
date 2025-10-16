@@ -76,11 +76,11 @@ class Improv:
         For the sake of better error handling, we try to keep an accurate record
         of what snippet is being generated at any given time.
         '''
-        if snippetName in model.bindings:
-            return model.bindings[snippetName]
-        
         if subModelName is not None:
             model = self.getSubModel(model, subModelName)
+        
+        if snippetName in model.bindings:
+            return model.bindings[snippetName]
         
         groups = self.snippets[snippetName]['groups']
         
