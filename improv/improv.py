@@ -8,10 +8,17 @@ class Improv:
             self, 
             snippets:dict, 
             reincorporate:bool=False, 
+            persistence:bool=True,
             filters:list[typing.Callable]=[],
+            salienceFormula:typing.Callable=lambda x: x,
             ):
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
+        self.persistence:bool = persistence
+        self.salienceFormula:typing.Callable = salienceFormula
+        
+        self.history:list = []
+        self.tagHistory:list = []
         self.filters:list[typing.Callable] = filters
         '''
         Filter functions should return None if the whole group is to be discarded,
@@ -22,6 +29,34 @@ class Improv:
     ## PUBLIC METHODS
     
     def gen (self, snippetName:str, model:Model=None) -> str:
+        '''
+        Generate text (user-facing API). Since this function can recur, most of
+        the heavy lifting is done in __gen().
+        '''
+        
+        output = self.__gen(snippetName, model)
+        
+        if not self.persistence:
+            self.clearHistory()
+            self.clearTagHistory()
+        
+        return output
+    
+    
+    def clearHistory (self): self.history = []
+    def clearTagHistory (self): self.tagHistory = []
+
+    ## PRIVATE METHODS
+    
+    def __gen(self, snippetName:str, model:Model) -> str:
+        '''
+        Actually generate text. Separate from #gen() because we don't want to clear
+        history or error-handling data while a call to #gen() hasn't finished
+        returning
+        
+        For the sake of better error handling, we try to keep an accurate record
+        of what snippet is being generated at any given time.
+        '''
         if snippetName in model.bindings:
             return model.bindings[snippetName]
         
@@ -55,7 +90,8 @@ class Improv:
                 maxScore = max(score, maxScore)
         
         # Filter out groups based on score threshold
-        scoredGroups = [g['group'] for g in filteredGroups if g['score'] >= maxScore]
+        scoreThreshold = self.salienceFormula(maxScore)
+        scoredGroups = [g['group'] for g in filteredGroups if g['score'] >= scoreThreshold]
         
         # Flatten phrases in a list.
         phrases = [
@@ -69,7 +105,11 @@ class Improv:
         
         if self.reincorporate:
             model.mergeTags(tags)
-
+        
+        # Store history
+        self.tagHistory.extend(tags)
+        self.history.append(chosenPhrase)
+        
         # Process the selected phrase for snippets (recursively)
         output = self.__template(chosenPhrase, model)
         
@@ -111,7 +151,7 @@ class Improv:
         
         # Snippet
         elif directive[0] == ':':
-            return self.gen(directive[1:], model)
+            return self.__gen(directive[1:], model)
         
         # Random integer
         elif directive[0] == '#':
