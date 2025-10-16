@@ -7,9 +7,11 @@ class Improv:
     def __init__ (
             self, 
             snippets:dict, 
+            reincorporate:bool=False, 
             filters:list[typing.Callable]=[],
             ):
         self.snippets:dict = dict(snippets)
+        self.reincorporate:bool = reincorporate
         self.filters:list[typing.Callable] = filters
         '''
         Filter functions should return None if the whole group is to be discarded,
@@ -57,13 +59,16 @@ class Improv:
         
         # Flatten phrases in a list.
         phrases = [
-            phrase
+            [phrase, group['tags']]
             for group in scoredGroups
             for phrase in group['phrases']
         ]
         
         # Select a phrase at random.
-        chosenPhrase = phrases[randint(0, len(phrases)-1)]
+        chosenPhrase, tags = phrases[randint(0, len(phrases)-1)]
+        
+        if self.reincorporate:
+            model.mergeTags(tags)
 
         # Process the selected phrase for snippets (recursively)
         output = self.__template(chosenPhrase, model)
