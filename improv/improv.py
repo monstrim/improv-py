@@ -10,10 +10,12 @@ class Improv:
             reincorporate:bool=False, 
             persistence:bool=True,
             filters:list[typing.Callable]=[],
+            salienceFormula:typing.Callable=lambda x: x,
             ):
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
+        self.salienceFormula:typing.Callable = salienceFormula
         
         self.history:list = []
         self.tagHistory:list = []
@@ -88,7 +90,8 @@ class Improv:
                 maxScore = max(score, maxScore)
         
         # Filter out groups based on score threshold
-        scoredGroups = [g['group'] for g in filteredGroups if g['score'] >= maxScore]
+        scoreThreshold = self.salienceFormula(maxScore)
+        scoredGroups = [g['group'] for g in filteredGroups if g['score'] >= scoreThreshold]
         
         # Flatten phrases in a list.
         phrases = [
