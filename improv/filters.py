@@ -46,3 +46,19 @@ def mismatchFilter ():
     but with a different sub-tag).
     '''
     return __groupComparer(comparisonMode=TagComparison.MISMATCH, bonus=None, cumulative=False)
+
+
+def repeatFilter ():
+    def _fn(group, model, improv):
+        newGroup = group.copy()
+        newGroup['phrases'] = [
+            phrase
+            for phrase in group['phrases']
+            if phrase not in improv.history
+        ]
+
+        if len(newGroup['phrases']) > 0:
+            return 0, newGroup
+        else:
+            return None
+    return _fn
