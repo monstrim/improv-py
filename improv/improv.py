@@ -14,6 +14,7 @@ class Improv:
         self.reincorporate:bool = reincorporate
         
         self.history:list = []
+        self.tagHistory:list = []
         self.filters:list[typing.Callable] = filters
         '''
         Filter functions should return None if the whole group is to be discarded,
@@ -73,6 +74,7 @@ class Improv:
             model.mergeTags(tags)
         
         # Store history
+        self.tagHistory.extend(tags)
         self.history.append(chosenPhrase)
         
         # Process the selected phrase for snippets (recursively)
@@ -86,6 +88,7 @@ class Improv:
     
     
     def clearHistory (self): self.history = []
+    def clearTagHistory (self): self.tagHistory = []
 
     ## PRIVATE METHODS
     

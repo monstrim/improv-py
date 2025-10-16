@@ -40,6 +40,20 @@ def fullBonus (bonus:int=1, cumulative:bool=False):
     return __groupComparer(comparisonMode=TagComparison.TOTAL, bonus=bonus, cumulative=cumulative)
 
 
+def unmentionedBonus (bonus=1):
+    def _fn(group, model, improv):
+        for tag in group['tags']:
+            found = False
+            for histTag in improv.tagHistory:
+                if tag[0]==histTag[0]:
+                    found = True
+                    break
+            if not found:
+                return bonus
+        return 0
+    return _fn
+
+
 def mismatchFilter ():
     '''
     Looks for mismatched tags (i.e., tags which match the first position, and are therefore equivalent,
