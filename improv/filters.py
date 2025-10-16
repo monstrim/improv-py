@@ -54,7 +54,8 @@ def repeatFilter ():
         newGroup['phrases'] = [
             phrase
             for phrase in group['phrases']
-            if phrase not in improv.history
+            if (phrase not in improv.history)
+                or ('repeat' in group and group['repeat'])
         ]
 
         if len(newGroup['phrases']) > 0:
