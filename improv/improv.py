@@ -28,7 +28,7 @@ class Improv:
         
     ## PUBLIC METHODS
     
-    def gen (self, snippetName:str, model:Model=None) -> str:
+    def gen (self, snippetName:str, model:Model) -> str:
         '''
         Generate text (user-facing API). Since this function can recur, most of
         the heavy lifting is done in __gen().
