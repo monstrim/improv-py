@@ -4,6 +4,19 @@ import typing
 
 from improv.model import Model
 
+
+__a = lambda text: f"a {text}" if text[0] not in 'aeioAEIO' else f"an {text}"
+__A = lambda x: str.title(__a(x))
+TEMPLATE_BUILTINS = {
+    "a": __a,
+    "an": __a,
+    "A": __A,
+    "An": __A,
+    "cap": str.upper, # capitalizes all letters
+    "tit": str.title, # capitalizes first leter of each word
+}
+
+
 class Improv:
     def __init__ (
             self, 
@@ -200,6 +213,8 @@ class Improv:
                 func = model.funcName
             elif funcName in self.builtins:
                 func = self.builtins[funcName]
+            elif funcName in TEMPLATE_BUILTINS:
+                func = TEMPLATE_BUILTINS[funcName]
             else:
                 raise Exception(f'''Bad or malformed directive "{rawDirective}": 
                                 builtin or model property "{funcName}" 
