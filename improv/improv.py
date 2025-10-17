@@ -79,6 +79,7 @@ class Improv:
         '''
         if hasattr(model, subModelName):
             submodel = getattr(model, subModelName)
+            assert type(submodel) is Model, ValueError(f'subModel "{subModelName}" must be Model type (was {type(submodel)})')
         else:
             submodel = self.submodeler(model, subModelName)
             setattr(model, subModelName, submodel)
@@ -119,6 +120,8 @@ class Improv:
         # Keep a stack of snippets we are using while recurring.
         self.__stack.append(snippetName)
         
+        if snippetName not in self.snippets:
+            IndexError(f'Unknown snippet "{snippetName}"')
         groups = self.snippets[snippetName]['groups']
         
         # Filter, and score, snippet groups
@@ -137,7 +140,7 @@ class Improv:
                 elif type(filterOutput) in (list, tuple):
                     # We got a tuple, meaning the filter wants to modify the group before
                     # moving on.
-                    assert len(filterOutput)==2, "Filter must return 1 or 2 values"
+                    assert len(filterOutput)==2, ValueError(f"Filter {filter.__name__} returned {len(filterOutput)} values, must be 1 or 2")
                     scoreOffset, group = filterOutput
                 else:
                     scoreOffset = filterOutput
@@ -158,6 +161,8 @@ class Improv:
             for group in scoredGroups
             for phrase in group['phrases']
         ]
+        
+        assert len(phrases) > 0, f"No phrases available in snippet {snippetName}"
         
         # Select a phrase at random.
         chosenPhrase, tags = phrases[randint(0, len(phrases)-1)]
@@ -223,14 +228,36 @@ class Improv:
 
         # Snippet using tags
         if directive[0] == '|' :
-            tagStr, snippet = directive[1:].split(':', 1)
+            try:
+                tagStr, snippet = directive[1:].split(':', 1)
+            except ValueError as e:
+                raise Exception(f'Bad or malformed directive "{rawDirective}": expected :')
+            
             newTag = tagStr.split('|')
 
             # copy current model and add tags
             newModel = deepcopy(model)
             newModel.mergeTags([newTag])
 
-            return self.__gen(snippet, newModel)
+            # set bindings to same object, to receive new ones automatically
+            newModel.bindings = model.bindings
+
+            # store info, to perform reincorporation
+            currTagPos = len(self.tagHistory)
+            currAttrs = model.__dict__.keys()
+
+            result = self.__gen(snippet, newModel)
+
+            if self.reincorporate:
+                # use tag history to reincorporate new tags and attrs from new model into current one
+                numAddedTags = len(self.tagHistory) - currTagPos
+                addedTags = self.tagHistory[-numAddedTags:]
+                model.mergeTags(addedTags)
+                for k, v in newModel.__dict__.items():
+                    if k not in currAttrs:
+                        setattr(model, k, v)
+
+            return result
         
         # SubModel snippet
         elif directive[0] == '>':
