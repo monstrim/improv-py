@@ -188,6 +188,19 @@ class Improv:
                 raise Exception(f'Bad or malformed directive "{rawDirective}": expected :')
             return self.__gen(subSnippet, model, subModelName)
         
+        # Chained directive.
+        elif directive.find(' ') != -1:
+            funcName, rest = directive.split(' ', 1)
+            
+            if (hasattr(model, funcName)
+                    and callable(model.funcName)):
+                func = model.funcName
+            else:
+                raise Exception(f'''Bad or malformed directive "{rawDirective}": 
+                                builtin or model property "{funcName}" 
+                                not found or not a function.''')
+            
+            return func(self.__processDirective(rest, model))
         
         # Random integer
         elif directive[0] == '#':
