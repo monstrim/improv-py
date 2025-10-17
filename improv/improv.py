@@ -1,7 +1,22 @@
 from random import randint
+from functools import reduce
+from copy import deepcopy
 import typing
 
 from improv.model import Model
+
+
+__a = lambda text: f"a {text}" if text[0] not in 'aeioAEIO' else f"an {text}"
+__A = lambda x: str.title(__a(x))
+TEMPLATE_BUILTINS = {
+    "a": __a,
+    "an": __a,
+    "A": __A,
+    "An": __A,
+    "cap": str.upper, # capitalizes all letters
+    "tit": str.title, # capitalizes first leter of each word
+}
+
 
 class Improv:
     def __init__ (
@@ -10,12 +25,16 @@ class Improv:
             reincorporate:bool=False, 
             persistence:bool=True,
             filters:list[typing.Callable]=[],
+            builtins:dict={},
             salienceFormula:typing.Callable=lambda x: x,
+            submodeler:typing.Callable=lambda model, subModelName: Model(),
             ):
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
+        self.builtins:dict = builtins
         self.salienceFormula:typing.Callable = salienceFormula
+        self.submodeler:typing.Callable = submodeler
         
         self.history:list = []
         self.tagHistory:list = []
@@ -25,10 +44,10 @@ class Improv:
         a single value for scoring if the whole group is accepted, and a list of 
         [value, new group] if the group has been altered (e.g some phrases filtered)
         '''
-        
+    
     ## PUBLIC METHODS
     
-    def gen (self, snippetName:str, model:Model=None) -> str:
+    def gen (self, snippetName:str, model:Model) -> str:
         '''
         Generate text (user-facing API). Since this function can recur, most of
         the heavy lifting is done in __gen().
@@ -43,12 +62,29 @@ class Improv:
         return output
     
     
+    def getSubModel (self, model:Model, subModelName:str) -> Model:
+        '''
+        A SubModel is just an attribute of a Model that is itself a Model.
+        This function gets it by name, creating a new one if needed.
+
+        Submodeler function can be added to Improv instance on init, to e.g. seed 
+        the SubModel with tags from the parent, or otherwise depending on name.
+        '''
+        if hasattr(model, subModelName):
+            submodel = getattr(model, subModelName)
+        else:
+            submodel = self.submodeler(model, subModelName)
+            setattr(model, subModelName, submodel)
+        
+        return submodel
+    
+    
     def clearHistory (self): self.history = []
     def clearTagHistory (self): self.tagHistory = []
-
+    
     ## PRIVATE METHODS
     
-    def __gen(self, snippetName:str, model:Model) -> str:
+    def __gen(self, snippetName:str, model:Model, subModelName:str=None) -> str:
         '''
         Actually generate text. Separate from #gen() because we don't want to clear
         history or error-handling data while a call to #gen() hasn't finished
@@ -57,6 +93,9 @@ class Improv:
         For the sake of better error handling, we try to keep an accurate record
         of what snippet is being generated at any given time.
         '''
+        if subModelName is not None:
+            model = self.getSubModel(model, subModelName)
+        
         if snippetName in model.bindings:
             return model.bindings[snippetName]
         
@@ -149,9 +188,51 @@ class Improv:
         
         if len(directive)==0: return ''
         
+        # This is a literal directive.
+        elif directive[0] == "'" and directive[-1] == "'":
+            return directive[1, -1]
+        
         # Snippet
         elif directive[0] == ':':
             return self.__gen(directive[1:], model)
+
+        # Snippet using tags
+        if directive[0] == '|' :
+            tagStr, snippet = directive[1:].split(':', 1)
+            newTag = tagStr.split('|')
+
+            # copy current model and add tags
+            newModel = deepcopy(model)
+            newModel.mergeTags([newTag])
+
+            return self.__gen(snippet, newModel)
+        
+        # SubModel snippet
+        elif directive[0] == '>':
+            try:
+                subModelName, subSnippet = directive[1:].split(':', 1)
+            except ValueError as e:
+                raise Exception(f'Bad or malformed directive "{rawDirective}": expected :')
+            return self.__gen(subSnippet, model, subModelName)
+        
+        # Chained directive.
+        elif directive.find(' ') != -1:
+            funcName, rest = directive.split(' ', 1)
+            
+            # let's have the model take priority
+            if (hasattr(model, funcName)
+                    and callable(model.funcName)):
+                func = model.funcName
+            elif funcName in self.builtins:
+                func = self.builtins[funcName]
+            elif funcName in TEMPLATE_BUILTINS:
+                func = TEMPLATE_BUILTINS[funcName]
+            else:
+                raise Exception(f'''Bad or malformed directive "{rawDirective}": 
+                                builtin or model property "{funcName}" 
+                                not found or not a function.''')
+            
+            return func(self.__processDirective(rest, model))
         
         # Random integer
         elif directive[0] == '#':
@@ -169,6 +250,11 @@ class Improv:
         # Model attribute
         elif hasattr(model, directive):
             return getattr(model, directive)
+        
+        # SubModel attribute
+        elif directive.find('.') > 0:
+            direcChain = directive.split('.')
+            return reduce(lambda model, directive: getattr(model, directive), direcChain, model)
         
         # Unknown
         else:
