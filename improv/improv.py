@@ -47,6 +47,8 @@ class Improv:
         [value, new group] if the group has been altered (e.g some phrases filtered)
         '''
         
+        self.__stack:list = []
+
         if audit:
             self.instantiateAuditData()
     
@@ -94,6 +96,8 @@ class Improv:
         assert self.audit, ValueError('No audit to view') 
         return deepcopy(self.__phraseAudit)
     
+    def phraseStack(self): return deepcopy(self.__stack)
+    
     
     ## PRIVATE METHODS
     
@@ -111,6 +115,9 @@ class Improv:
         
         if snippetName in model.bindings:
             return model.bindings[snippetName]
+        
+        # Keep a stack of snippets we are using while recurring.
+        self.__stack.append(snippetName)
         
         groups = self.snippets[snippetName]['groups']
         
@@ -173,6 +180,7 @@ class Improv:
         if 'bind' in self.snippets[snippetName] and self.snippets[snippetName]['bind']:
             model.bindings[snippetName] = output
         
+        self.__stack.pop() 
         return output
     
     
