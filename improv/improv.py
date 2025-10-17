@@ -172,6 +172,10 @@ class Improv:
         
         if len(directive)==0: return ''
         
+        # This is a literal directive.
+        elif directive[0] == "'" and directive[-1] == "'":
+            return directive[1, -1]
+        
         # Snippet
         elif directive[0] == ':':
             return self.__gen(directive[1:], model)
