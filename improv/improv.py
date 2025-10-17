@@ -11,12 +11,14 @@ class Improv:
             reincorporate:bool=False, 
             persistence:bool=True,
             filters:list[typing.Callable]=[],
+            builtins:dict={},
             salienceFormula:typing.Callable=lambda x: x,
             submodeler:typing.Callable=lambda model, subModelName: Model(),
             ):
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
+        self.builtins:dict = builtins
         self.salienceFormula:typing.Callable = salienceFormula
         self.submodeler:typing.Callable = submodeler
         
@@ -192,9 +194,12 @@ class Improv:
         elif directive.find(' ') != -1:
             funcName, rest = directive.split(' ', 1)
             
+            # let's have the model take priority
             if (hasattr(model, funcName)
                     and callable(model.funcName)):
                 func = model.funcName
+            elif funcName in self.builtins:
+                func = self.builtins[funcName]
             else:
                 raise Exception(f'''Bad or malformed directive "{rawDirective}": 
                                 builtin or model property "{funcName}" 
