@@ -10,7 +10,7 @@ This allows for more sophisticated text generation by referencing an underlying
 world model.
 '''
 
-__version__ = '0.4'
+__version__ = '1.0.0'
 __author__ = 'Pedro Monstrinho Araujo'
 
 
