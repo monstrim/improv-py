@@ -4,6 +4,7 @@
 - auditing features
 - better error handling
 - all features of original library have been replicated :)
+- license readme etc
 
 ## [0.4.0] - 2025-10-17
 - submodel snippet and attribute
