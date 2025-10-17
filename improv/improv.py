@@ -24,6 +24,7 @@ class Improv:
             snippets:dict, 
             reincorporate:bool=False, 
             persistence:bool=True,
+            audit:bool=False,
             filters:list[typing.Callable]=[],
             builtins:dict={},
             salienceFormula:typing.Callable=lambda x: x,
@@ -32,6 +33,7 @@ class Improv:
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
+        self.audit:bool = audit
         self.builtins:dict = builtins
         self.salienceFormula:typing.Callable = salienceFormula
         self.submodeler:typing.Callable = submodeler
@@ -44,6 +46,9 @@ class Improv:
         a single value for scoring if the whole group is accepted, and a list of 
         [value, new group] if the group has been altered (e.g some phrases filtered)
         '''
+        
+        if audit:
+            self.instantiateAuditData()
     
     ## PUBLIC METHODS
     
@@ -81,6 +86,14 @@ class Improv:
     
     def clearHistory (self): self.history = []
     def clearTagHistory (self): self.tagHistory = []
+    def clearAudit(self): 
+        assert self.audit, ValueError('No audit to clear') 
+        self.instantiateAuditData()
+    
+    def phraseAudit(self):
+        assert self.audit, ValueError('No audit to view') 
+        return deepcopy(self.__phraseAudit)
+    
     
     ## PRIVATE METHODS
     
@@ -144,6 +157,10 @@ class Improv:
         
         if self.reincorporate:
             model.mergeTags(tags)
+
+        # Store amount of times each phrase is selected, for later debugging of statistics
+        if self.audit:
+            self.__phraseAudit[snippetName][chosenPhrase] += 1
         
         # Store history
         self.tagHistory.extend(tags)
@@ -259,3 +276,14 @@ class Improv:
         # Unknown
         else:
             return '[' + directive + ']'
+    
+    def instantiateAuditData(self):
+        self.__phraseAudit = {
+            key: {
+                phrase: 0
+                for group in snippet['groups']
+                for phrase in group['phrases']
+            }
+
+            for key, snippet in self.snippets.items()
+        }
