@@ -24,6 +24,7 @@ class Improv:
             snippets:dict, 
             reincorporate:bool=False, 
             persistence:bool=True,
+            audit:bool=False,
             filters:list[typing.Callable]=[],
             builtins:dict={},
             salienceFormula:typing.Callable=lambda x: x,
@@ -32,6 +33,7 @@ class Improv:
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
+        self.audit:bool = audit
         self.builtins:dict = builtins
         self.salienceFormula:typing.Callable = salienceFormula
         self.submodeler:typing.Callable = submodeler
@@ -44,6 +46,11 @@ class Improv:
         a single value for scoring if the whole group is accepted, and a list of 
         [value, new group] if the group has been altered (e.g some phrases filtered)
         '''
+        
+        self.__stack:list = []
+
+        if audit:
+            self.instantiateAuditData()
     
     ## PUBLIC METHODS
     
@@ -72,6 +79,7 @@ class Improv:
         '''
         if hasattr(model, subModelName):
             submodel = getattr(model, subModelName)
+            assert type(submodel) is Model, ValueError(f'subModel "{subModelName}" must be Model type (was {type(submodel)})')
         else:
             submodel = self.submodeler(model, subModelName)
             setattr(model, subModelName, submodel)
@@ -81,6 +89,16 @@ class Improv:
     
     def clearHistory (self): self.history = []
     def clearTagHistory (self): self.tagHistory = []
+    def clearAudit(self): 
+        assert self.audit, ValueError('No audit to clear') 
+        self.instantiateAuditData()
+    
+    def phraseAudit(self):
+        assert self.audit, ValueError('No audit to view') 
+        return deepcopy(self.__phraseAudit)
+    
+    def phraseStack(self): return deepcopy(self.__stack)
+    
     
     ## PRIVATE METHODS
     
@@ -99,6 +117,11 @@ class Improv:
         if snippetName in model.bindings:
             return model.bindings[snippetName]
         
+        # Keep a stack of snippets we are using while recurring.
+        self.__stack.append(snippetName)
+        
+        if snippetName not in self.snippets:
+            IndexError(f'Unknown snippet "{snippetName}"')
         groups = self.snippets[snippetName]['groups']
         
         # Filter, and score, snippet groups
@@ -117,7 +140,7 @@ class Improv:
                 elif type(filterOutput) in (list, tuple):
                     # We got a tuple, meaning the filter wants to modify the group before
                     # moving on.
-                    assert len(filterOutput)==2, "Filter must return 1 or 2 values"
+                    assert len(filterOutput)==2, ValueError(f"Filter {filter.__name__} returned {len(filterOutput)} values, must be 1 or 2")
                     scoreOffset, group = filterOutput
                 else:
                     scoreOffset = filterOutput
@@ -139,11 +162,17 @@ class Improv:
             for phrase in group['phrases']
         ]
         
+        assert len(phrases) > 0, f"No phrases available in snippet {snippetName}"
+        
         # Select a phrase at random.
         chosenPhrase, tags = phrases[randint(0, len(phrases)-1)]
         
         if self.reincorporate:
             model.mergeTags(tags)
+
+        # Store amount of times each phrase is selected, for later debugging of statistics
+        if self.audit:
+            self.__phraseAudit[snippetName][chosenPhrase] += 1
         
         # Store history
         self.tagHistory.extend(tags)
@@ -156,6 +185,7 @@ class Improv:
         if 'bind' in self.snippets[snippetName] and self.snippets[snippetName]['bind']:
             model.bindings[snippetName] = output
         
+        self.__stack.pop() 
         return output
     
     
@@ -198,14 +228,36 @@ class Improv:
 
         # Snippet using tags
         if directive[0] == '|' :
-            tagStr, snippet = directive[1:].split(':', 1)
+            try:
+                tagStr, snippet = directive[1:].split(':', 1)
+            except ValueError as e:
+                raise Exception(f'Bad or malformed directive "{rawDirective}": expected :')
+            
             newTag = tagStr.split('|')
 
             # copy current model and add tags
             newModel = deepcopy(model)
             newModel.mergeTags([newTag])
 
-            return self.__gen(snippet, newModel)
+            # set bindings to same object, to receive new ones automatically
+            newModel.bindings = model.bindings
+
+            # store info, to perform reincorporation
+            currTagPos = len(self.tagHistory)
+            currAttrs = model.__dict__.keys()
+
+            result = self.__gen(snippet, newModel)
+
+            if self.reincorporate:
+                # use tag history to reincorporate new tags and attrs from new model into current one
+                numAddedTags = len(self.tagHistory) - currTagPos
+                addedTags = self.tagHistory[-numAddedTags:]
+                model.mergeTags(addedTags)
+                for k, v in newModel.__dict__.items():
+                    if k not in currAttrs:
+                        setattr(model, k, v)
+
+            return result
         
         # SubModel snippet
         elif directive[0] == '>':
@@ -259,3 +311,14 @@ class Improv:
         # Unknown
         else:
             return '[' + directive + ']'
+    
+    def instantiateAuditData(self):
+        self.__phraseAudit = {
+            key: {
+                phrase: 0
+                for group in snippet['groups']
+                for phrase in group['phrases']
+            }
+
+            for key, snippet in self.snippets.items()
+        }
