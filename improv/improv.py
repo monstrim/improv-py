@@ -1,8 +1,22 @@
 from random import randint
 from functools import reduce
+from copy import deepcopy
 import typing
 
 from improv.model import Model
+
+
+__a = lambda text: f"a {text}" if text[0] not in 'aeioAEIO' else f"an {text}"
+__A = lambda x: str.title(__a(x))
+TEMPLATE_BUILTINS = {
+    "a": __a,
+    "an": __a,
+    "A": __A,
+    "An": __A,
+    "cap": str.upper, # capitalizes all letters
+    "tit": str.title, # capitalizes first leter of each word
+}
+
 
 class Improv:
     def __init__ (
@@ -11,12 +25,14 @@ class Improv:
             reincorporate:bool=False, 
             persistence:bool=True,
             filters:list[typing.Callable]=[],
+            builtins:dict={},
             salienceFormula:typing.Callable=lambda x: x,
             submodeler:typing.Callable=lambda model, subModelName: Model(),
             ):
         self.snippets:dict = dict(snippets)
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
+        self.builtins:dict = builtins
         self.salienceFormula:typing.Callable = salienceFormula
         self.submodeler:typing.Callable = submodeler
         
@@ -172,9 +188,24 @@ class Improv:
         
         if len(directive)==0: return ''
         
+        # This is a literal directive.
+        elif directive[0] == "'" and directive[-1] == "'":
+            return directive[1, -1]
+        
         # Snippet
         elif directive[0] == ':':
             return self.__gen(directive[1:], model)
+
+        # Snippet using tags
+        if directive[0] == '|' :
+            tagStr, snippet = directive[1:].split(':', 1)
+            newTag = tagStr.split('|')
+
+            # copy current model and add tags
+            newModel = deepcopy(model)
+            newModel.mergeTags([newTag])
+
+            return self.__gen(snippet, newModel)
         
         # SubModel snippet
         elif directive[0] == '>':
@@ -184,6 +215,24 @@ class Improv:
                 raise Exception(f'Bad or malformed directive "{rawDirective}": expected :')
             return self.__gen(subSnippet, model, subModelName)
         
+        # Chained directive.
+        elif directive.find(' ') != -1:
+            funcName, rest = directive.split(' ', 1)
+            
+            # let's have the model take priority
+            if (hasattr(model, funcName)
+                    and callable(model.funcName)):
+                func = model.funcName
+            elif funcName in self.builtins:
+                func = self.builtins[funcName]
+            elif funcName in TEMPLATE_BUILTINS:
+                func = TEMPLATE_BUILTINS[funcName]
+            else:
+                raise Exception(f'''Bad or malformed directive "{rawDirective}": 
+                                builtin or model property "{funcName}" 
+                                not found or not a function.''')
+            
+            return func(self.__processDirective(rest, model))
         
         # Random integer
         elif directive[0] == '#':
