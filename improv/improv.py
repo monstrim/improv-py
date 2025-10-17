@@ -1,5 +1,6 @@
 from random import randint
 from functools import reduce
+from copy import deepcopy
 import typing
 
 from improv.model import Model
@@ -194,6 +195,17 @@ class Improv:
         # Snippet
         elif directive[0] == ':':
             return self.__gen(directive[1:], model)
+
+        # Snippet using tags
+        if directive[0] == '|' :
+            tagStr, snippet = directive[1:].split(':', 1)
+            newTag = tagStr.split('|')
+
+            # copy current model and add tags
+            newModel = deepcopy(model)
+            newModel.mergeTags([newTag])
+
+            return self.__gen(snippet, newModel)
         
         # SubModel snippet
         elif directive[0] == '>':
