@@ -30,7 +30,20 @@ class Improv:
             salienceFormula:typing.Callable=lambda x: x,
             submodeler:typing.Callable=lambda model, subModelName: Model(),
             ):
-        self.snippets:dict = dict(snippets)
+        self.snippets:dict = {}
+        # preprocess snippet tags
+        for name, snippet in snippets.items():
+            if type(snippet) is str: snippet = [snippet]
+            if type(snippet) is list: snippet = {'groups': snippet}
+            
+            for g,group in enumerate(snippet['groups']):
+                if type(group) is str: group = snippet['groups'][g] = {'phrases': group}
+                if 'tags' not in group: group['tags'] = []
+                if type(group['tags']) is str: group['tags'] = group['tags'].split(',')
+                for t,tag in enumerate(group['tags']):
+                    if type(tag) is str: group['tags'][t] = tag.strip().split(' ')
+            
+            self.snippets[name] = snippet
         self.reincorporate:bool = reincorporate
         self.persistence:bool = persistence
         self.audit:bool = audit
