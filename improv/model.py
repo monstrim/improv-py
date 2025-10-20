@@ -11,11 +11,11 @@ class Model:
     
     def mergeTags (self, tags:list) -> None:
         if type(tags) is str:
-            tags = [tags]
+            tags = tags.split(',')
         
         for tag in tags:
             if type(tag) is str:
-                tag = tag.split(' ')
+                tag = tag.strip().split(' ')
             
             # Find the matching tag...
             matches = [
