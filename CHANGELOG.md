@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.0.1] - 2025-10-20
+- tags can be a comma and space separated list, e.g `"class mammal, cute"` instead of `[["class", "mammal"], ["cute"]]`
+
 ## [1.0.0] - 2025-10-17
 - auditing features
 - better error handling
