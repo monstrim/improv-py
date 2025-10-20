@@ -14,11 +14,11 @@ snippets = {
         'bind': False,
         'groups': [
             {
-                'tags': ['class mammal'],
+                'tags': 'class mammal',
                 'phrases': ['dog', 'cat']
             },
             {
-                'tags': ['class bird'],
+                'tags': 'class bird',
                 'phrases': ['parrot']
             }
         ]
@@ -26,7 +26,6 @@ snippets = {
     'root': {
         'groups': [
             {
-                'tags': [],
                 'repeat': True,
                 'phrases': [
                     '[name]: I have [an :animal] who is [#2-7] years old.'
@@ -42,8 +41,8 @@ improv = Improv(
 )
 
 alice = Model(name= 'Alice') 
-bob = Model(name= 'Bob', tags= ['class mammal'])
-carol = Model(name= 'Carol', tags= ['class bird'])
+bob = Model(name= 'Bob', tags= 'class mammal')
+carol = Model(name= 'Carol', tags= 'class bird')
 
 print(improv.gen('root', alice))
 print(improv.gen('root', bob))
